@@ -13,6 +13,7 @@ public class Join extends Operator {
     private DbIterator child2;
     private TupleDesc tupleDesc;
     private boolean getNextOuterTuple;
+    private boolean moreOuterTuple;
     private Tuple outerTuple;
 
     /**
@@ -73,6 +74,11 @@ public class Join extends Operator {
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+
+        getNextOuterTuple = true;
+        moreOuterTuple = true;
+        outerTuple = null;
+
         this.child1.open();
         this.child2.open();
         super.open();
@@ -80,15 +86,13 @@ public class Join extends Operator {
 
     public void close() {
         // some code goes here
+        super.close();
         this.child1.close();
         this.child2.close();
-        super.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
-        this.child1.rewind();
-        this.child2.rewind();
         this.close();
         this.open();
     }
@@ -114,8 +118,11 @@ public class Join extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
         // check if more outer tuples exist before iteration over outer relation
-        
-        while(child1.hasNext()){
+        if (getNextOuterTuple) {
+            moreOuterTuple = child1.hasNext();
+        }
+
+        while(moreOuterTuple){
             if(getNextOuterTuple) {
                 outerTuple = child1.next();
                 getNextOuterTuple = false;
@@ -138,6 +145,7 @@ public class Join extends Operator {
             }
             child2.rewind();
             getNextOuterTuple = true;
+            moreOuterTuple = child1.hasNext();
         }
         return null;
     }
