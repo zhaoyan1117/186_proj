@@ -141,6 +141,12 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for proj1
+        HeapFile f = (HeapFile) Database.getCatalog().getDbFile(tableId);
+        ArrayList<Page> modifiedPages = f.insertTuple(tid, t);
+        for (Page p : modifiedPages) {
+            p.markDirty(true, tid);
+            pagesMap.put(p.getId(), p);
+        }
     }
 
     /**
@@ -160,6 +166,13 @@ public class BufferPool {
         throws DbException, TransactionAbortedException {
         // some code goes here
         // not necessary for proj1
+        HeapFile f = (HeapFile) Database.getCatalog().getDbFile(
+                        t.getRecordId().getPageId().getTableId()
+                    );
+        Page modifiedPage = f.deleteTuple(tid, t);
+
+        modifiedPage.markDirty(true, tid);
+        pagesMap.put(modifiedPage.getId(), modifiedPage);
     }
 
     /**
