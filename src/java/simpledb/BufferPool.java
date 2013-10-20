@@ -24,6 +24,7 @@ public class BufferPool {
 
     private Map<PageId, Page> pagesMap; // mapping from page id to a page.
     private int size; // size of the buffer pool.
+    private ArrayList<PageId> replacementQueue;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -34,6 +35,7 @@ public class BufferPool {
         // some code goes here
         this.size = numPages;
         this.pagesMap = new HashMap<PageId, Page>();
+        this.replacementQueue = new ArrayList<PageId>();
     }
 
     /**
@@ -55,17 +57,21 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
         if (pagesMap.containsKey(pid)) {
+            this.replacementQueue.remove(pid);
+            this.replacementQueue.add(pid);
             return pagesMap.get(pid);
         } else {
 
             if (this.bufferIsFull()) {
-                throw new DbException("BufferPool is full!");
+                //throw new DbException("BufferPool is full!");
+                this.evictPage();
             }
 
             try {
                 DbFile f = Database.getCatalog().getDbFile(pid.getTableId());
                 Page p = f.readPage(pid);
                 pagesMap.put(pid, p);
+                this.replacementQueue.add(pid);
                 return p;
             } catch (NoSuchElementException e) {
                 throw new DbException("Page not found in database!");
@@ -183,6 +189,9 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for proj1
+        for (PageId pid : this.pagesMap.keySet()) {
+            this.flushPage(pid);
+        }
 
     }
 
@@ -202,6 +211,10 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for proj1
+        Page p = this.pagesMap.get(pid);
+        if (p.isDirty() != null) {
+            Database.getCatalog().getDbFile(pid.getTableId()).writePage(p);
+        } 
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -218,6 +231,11 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for proj1
+        PageId pid = this.replacementQueue.remove(0);
+        try {
+            this.flushPage(pid);
+        } catch (IOException e) {}
+        this.pagesMap.remove(pid);
     }
 
 }
