@@ -165,7 +165,7 @@ public class Aggregate extends Operator {
         Type[] typeAr; 
         String[] fieldAr;
 
-        if(this.afield == Aggregator.NO_GROUPING){
+        if(this.gfield == Aggregator.NO_GROUPING){
             typeAr = new Type[] { child.getTupleDesc().getFieldType(afield) };
             fieldAr = new String[] { aop.toString() + "(" + child.getTupleDesc().getFieldName(afield) + ")" };
         } else {
