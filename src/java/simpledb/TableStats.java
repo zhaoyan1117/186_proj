@@ -66,6 +66,18 @@ public class TableStats {
      */
     static final int NUM_HIST_BINS = 100;
 
+    private Map<String, Integer> minMap;
+    private Map<String, Integer> maxMap;
+    private Map<String, IntHistogram> intHistograms;
+    private Map<String, StringHistogram> stringHistograms;
+    private int ntups;
+
+    private TupleDesc fielTd;
+    private DbFileIterator fileItr;
+    private int fileNumPages;
+
+    private int ioCostPerPage;
+
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -85,6 +97,87 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+        HeapFile file = (HeapFile) Database.getCatalog().getDbFile(tableid);
+        this.fielTd = file.getTupleDesc();
+        this.fileItr = file.iterator(null);
+        this.fileNumPages = file.numPages();
+        minMap = new HashMap<String, Integer>();
+        maxMap = new HashMap<String, Integer>();
+        intHistograms = new HashMap<String, IntHistogram>();
+        stringHistograms = new HashMap<String, StringHistogram>();
+        this.ioCostPerPage = ioCostPerPage;
+
+        getStatistics();
+        buildHistograms();
+    }
+
+    private void getStatistics() {
+        try {
+            this.fileItr.open();
+            while(this.fileItr.hasNext()) {
+                Tuple t = this.fileItr.next();
+                this.ntups++;
+                for (int i = 0; i < this.fielTd.numFields(); i++) {
+                    if (this.fielTd.getFieldType(i).equals(Type.INT_TYPE)) {
+                        IntField field = (IntField) t.getField(i);
+                        String name = this.fielTd.getFieldName(i);
+
+                        if (!this.minMap.containsKey(name)) {
+                            this.minMap.put(name, field.getValue());
+                        } else {
+                            this.minMap.put(name, Math.min(field.getValue(), this.minMap.get(name)));
+                        }
+
+                        if (!this.maxMap.containsKey(name)) {
+                            this.maxMap.put(name, field.getValue());
+                        } else {
+                            this.maxMap.put(name, Math.max(field.getValue(), this.maxMap.get(name)));
+                        }
+                    }
+                }
+            }
+        } catch (DbException e) {
+            e.printStackTrace();
+        } catch (TransactionAbortedException e) {
+            e.printStackTrace();
+        }
+        this.fileItr.close();
+    }
+
+    private void buildHistograms() {
+        try {
+            this.fileItr.open();
+            while (this.fileItr.hasNext()) {
+                Tuple t = this.fileItr.next();
+
+                for (int i = 0; i < this.fielTd.numFields(); i++) {
+                    String name = this.fielTd.getFieldName(i);
+
+                    if (this.fielTd.getFieldType(i).equals(Type.INT_TYPE)) {
+
+                        IntField field = (IntField)t.getField(i);
+                        IntHistogram h = intHistograms.get(name);
+                        if (h == null) { h = new IntHistogram(NUM_HIST_BINS, 
+                                                              minMap.get(name),
+                                                              maxMap.get(name)); }
+                        h.addValue(field.getValue());
+                        intHistograms.put(name, h);
+                    } else {
+                        StringField field = (StringField)t.getField(i);
+                        StringHistogram h = stringHistograms.get(name);
+                        if (h == null) { h = new StringHistogram(NUM_HIST_BINS); }
+                        h.addValue(field.getValue());
+                        stringHistograms.put(name, h);
+                    }
+                }
+            }
+        } catch (DbException e) {
+            e.printStackTrace();
+        } catch (TransactionAbortedException e) {
+            e.printStackTrace();
+        }
+
+        this.fileItr.close();
     }
 
     /**
@@ -101,7 +194,7 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+        return this.fileNumPages * this.ioCostPerPage;
     }
 
     /**
@@ -115,7 +208,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
-        return 0;
+        return (int) (this.ntups * selectivityFactor);
     }
 
     /**
@@ -148,7 +241,13 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
-        return 1.0;
+        String name = this.fielTd.getFieldName(field);
+
+        if (this.fielTd.getFieldType(field).equals(Type.INT_TYPE)) {
+            return this.intHistograms.get(name).estimateSelectivity(op, ((IntField)constant).getValue());
+        } else {
+            return this.stringHistograms.get(name).estimateSelectivity(op, ((StringField)constant).getValue());
+        }
     }
 
     /**
@@ -156,7 +255,7 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-        return 0;
+        return this.ntups;
     }
 
 }
