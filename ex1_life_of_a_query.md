@@ -54,10 +54,12 @@ This method build the physical plan tree in bottom up order:
 
 - Finally, it will add the project node on top and return the project node/iterator.
 
-_Step 6: simpledb.JoinOptimizer.orderJoins(HashMap<String, TableStats> stats, HashMap<String, Double> filterSelectivities, boolean explain)_
+Step 6: simpledb.JoinOptimizer.orderJoins(HashMap<String, TableStats> stats, HashMap<String, Double> filterSelectivities, boolean explain)
 ----
 
-_We will implement this method later._
+This method is the main method implements the Selinger cost-based optimizer, it is gonna build a left deep tree of query joins. Also, takes in a join plan as a vector and returned a new vector described the optimized join plans.
+_We are gonna implement this method._
+
 
 Step 7: simpledb.Query.execute()
 ----
