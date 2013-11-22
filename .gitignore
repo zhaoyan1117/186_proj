@@ -1,0 +1,9 @@
+bin/
+dist/
+log
+*data/
+._*
+imdb/
+*.html
+answers.txt
+*.gz
