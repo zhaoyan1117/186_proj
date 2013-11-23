@@ -16,7 +16,19 @@ public class LockManager {
 		if (this.locks.containsKey(pid)) {
 			Lock l = this.locks.get(pid);
 
-			if (l.contains(tid)) { return; }
+			if (l.contains(tid)) { 
+				if ((perm == Permissions.READ_ONLY && !l.isExclusive()) ||
+					(perm == Permissions.READ_WRITE && l.isExclusive())) {
+					return;
+				} else {
+					if (perm == Permissions.READ_ONLY && l.isExclusive()) {
+						return;
+					}
+					this.upgradeBlock(l, tid);
+					l.type = Lock.X_LOCK;
+					return;
+				}
+			}
 
 			if (l.isExclusive()) {
 				block(pid);
@@ -40,6 +52,18 @@ public class LockManager {
 				this.locks.put(pid, new Lock(Lock.X_LOCK, tid));
 			}
 		}
+	}
+
+	public void upgradeBlock(Lock lock, TransactionId tid) throws TransactionAbortedException {
+		try {
+			long t0 = System.currentTimeMillis();
+			while (!(lock.size() == 1 && lock.contains(tid))) {
+				Thread.sleep(10);
+				if (System.currentTimeMillis() - t0 > DEADLOCK_TIMEOUT) { 
+					throw new TransactionAbortedException();
+				}
+			}
+		} catch (InterruptedException e) {}
 	}
 
 	public void releaseLock(TransactionId tid, PageId pid) {
@@ -68,8 +92,6 @@ public class LockManager {
 			}
 		} catch (InterruptedException e) {}
 	}
-
-
 
     public boolean holdsLock(TransactionId tid, PageId pid) {
 		Lock l = this.locks.get(pid);
