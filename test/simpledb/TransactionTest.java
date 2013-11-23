@@ -13,7 +13,6 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
   // just so we have a pointer shorter than Database.getBufferPool()
   private BufferPool bp;
 
-
   /**
    * Set up initial resources for each unit test.
    */
@@ -46,7 +45,6 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
     bp.getPage(tid, p2, Permissions.READ_WRITE).markDirty(true, tid);
     bp.flushAllPages();
     bp = Database.resetBufferPool(BufferPool.DEFAULT_PAGES);
-
   }
 
   /**
@@ -54,8 +52,7 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
    * Try to acquire locks that would conflict if old locks aren't released
    * during transactionComplete().
    */
-  @Test(timeout=10) public void attemptTransactionTwice() throws Exception {
-    System.out.println("ghaeilfha");
+  @Test public void attemptTransactionTwice() throws Exception {
     bp.getPage(tid1, p0, Permissions.READ_ONLY);
     bp.getPage(tid1, p1, Permissions.READ_WRITE);
     bp.transactionComplete(tid1, true);
@@ -103,7 +100,7 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
    * Unit test for BufferPool.transactionComplete() assuing commit.
    * Verify that a tuple inserted during a committed transaction is durable
    */
-  @Test(timeout=10) public void commitTransaction() throws Exception {
+  @Test public void commitTransaction() throws Exception {
     testTransactionComplete(true);
   }
 
@@ -111,7 +108,7 @@ public class TransactionTest extends TestUtil.CreateHeapFile {
    * Unit test for BufferPool.transactionComplete() assuming abort.
    * Verify that a tuple inserted during a committed transaction is durable
    */
-  @Test(timeout=10) public void abortTransaction() throws Exception {
+  @Test public void abortTransaction() throws Exception {
     testTransactionComplete(false);
   }
 

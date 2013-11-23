@@ -213,16 +213,12 @@ public class TransactionTest extends SimpleDbTestBase {
 
     @Test public void testTwoThreads()
             throws IOException, DbException, TransactionAbortedException {
-        System.out.println("start two threads testing -----------------");
         validateTransactions(2);
-        System.out.println("start two threads testing -----------------");
     }
 
     @Test public void testFiveThreads()
             throws IOException, DbException, TransactionAbortedException {
-        System.out.println("start five threads testing -----------------");
         validateTransactions(5);
-        System.out.println("start five threads testing -----------------");
     }
     
     @Test public void testTenThreads()
