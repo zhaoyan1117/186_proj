@@ -25,6 +25,7 @@ public class BufferPool {
     private Map<PageId, Page> pagesMap; // mapping from page id to a page.
     private int size; // size of the buffer pool.
     private ArrayList<PageId> replacementQueue;
+    private LockManager lockManager;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -36,6 +37,7 @@ public class BufferPool {
         this.size = numPages;
         this.pagesMap = new HashMap<PageId, Page>();
         this.replacementQueue = new ArrayList<PageId>();
+        this.lockManager = new LockManager();
     }
 
     /**
@@ -56,6 +58,8 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        lockManager.acquireLock(tid, pid, perm);
+
         if (pagesMap.containsKey(pid)) {
             this.replacementQueue.remove(pid);
             this.replacementQueue.add(pid);
@@ -76,7 +80,6 @@ public class BufferPool {
             } catch (NoSuchElementException e) {
                 throw new DbException("Page not found in database!");
             }
-
         }
     }
 
@@ -97,6 +100,7 @@ public class BufferPool {
     public  void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for proj1
+        lockManager.releaseLock(tid, pid);
     }
 
     /**
@@ -107,13 +111,14 @@ public class BufferPool {
     public void transactionComplete(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for proj1
+        this.transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for proj1
-        return false;
+        return lockManager.holdsLock(tid, p);
     }
 
     /**
@@ -127,6 +132,11 @@ public class BufferPool {
         throws IOException {
         // some code goes here
         // not necessary for proj1
+        if (commit) {
+            this.flushPages(tid);
+        } else {
+            this.revertPages(tid);
+        }
     }
 
     /**
@@ -222,6 +232,21 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for proj1
+        ArrayList<PageId> pids = lockManager.releaseLocks(tid);
+        for (PageId pid: pids) {
+            flushPage(pid);
+        }
+    }
+
+    public synchronized void revertPages(TransactionId tid) {
+        ArrayList<PageId> pids = lockManager.releaseLocks(tid);
+
+        for (PageId pid: pids) {
+            DbFile tableFile = Database.getCatalog().getDbFile(pid.getTableId());
+            this.pagesMap.put(pid, tableFile.readPage(pid));
+            Page page = this.pagesMap.get(pid);
+            page.markDirty(false, null);
+        }
     }
 
     /**
@@ -231,11 +256,17 @@ public class BufferPool {
     private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for proj1
-        PageId pid = this.replacementQueue.remove(0);
-        try {
-            this.flushPage(pid);
-        } catch (IOException e) {}
-        this.pagesMap.remove(pid);
+        for (int i = 0; i < replacementQueue.size(); i++) {
+            PageId pid = this.replacementQueue.get(i);
+            Page p = this.pagesMap.get(pid);
+            if (p.isDirty() == null) {
+                pid = this.replacementQueue.remove(i);
+                this.pagesMap.remove(pid);
+                return;
+            }
+        }
+
+        throw new DbException("No clean page to be evicted!");
     }
 
 }

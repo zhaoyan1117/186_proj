@@ -33,7 +33,7 @@ public class HeapFileIterator implements DbFileIterator {
 
     private void setCurrentPageIterator() throws TransactionAbortedException, DbException {
         HeapPageId currentPageId = new HeapPageId(this.file.getId(), this.currentPageNumber);
-        HeapPage currentPage = (HeapPage) this.buffer.getPage(this.tid, currentPageId, Permissions.READ_WRITE);
+        HeapPage currentPage = (HeapPage) this.buffer.getPage(this.tid, currentPageId, Permissions.READ_ONLY);
         this.currentPageIterator = currentPage.iterator();
     }
 
