@@ -58,7 +58,9 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        
         lockManager.acquireLock(tid, pid, perm);
+        
 
         if (pagesMap.containsKey(pid)) {
             this.replacementQueue.remove(pid);
@@ -222,8 +224,9 @@ public class BufferPool {
         // some code goes here
         // not necessary for proj1
         Page p = this.pagesMap.get(pid);
-        if (p.isDirty() != null) {
+        if (p!=null && p.isDirty() != null) {
             Database.getCatalog().getDbFile(pid.getTableId()).writePage(p);
+            p.markDirty(false, null);
         } 
     }
 

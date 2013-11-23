@@ -6,26 +6,29 @@ import java.util.*;
 public class LockManager {
 	
 	private Map<PageId, Lock> locks;	
-	private final int DEADLOCK_TIMEOUT = 1000;
+	private final int DEADLOCK_TIMEOUT = 250;
 	
 	public LockManager() {
 		locks = new ConcurrentHashMap<PageId, Lock>();
 	}
 	
 	public void acquireLock(TransactionId tid, PageId pid, Permissions perm) throws TransactionAbortedException {
+		String per = (perm == Permissions.READ_ONLY) ? "S" : "X";
+		// System.out.print(tid.hashCode() + " acquiring " + per + " page " + pid.pageNumber());
 		if (this.locks.containsKey(pid)) {
 			Lock l = this.locks.get(pid);
 
 			if (l.contains(tid)) { 
-				if ((perm == Permissions.READ_ONLY && !l.isExclusive()) ||
+
+				if ((perm == Permissions.READ_ONLY) ||
 					(perm == Permissions.READ_WRITE && l.isExclusive())) {
+					// System.out.println(" " + tid.hashCode() + " already got " + per + " page " + pid.pageNumber());
 					return;
 				} else {
-					if (perm == Permissions.READ_ONLY && l.isExclusive()) {
-						return;
-					}
+					// System.out.print(" " + tid.hashCode() + " requiring update");
 					this.upgradeBlock(l, tid);
 					l.type = Lock.X_LOCK;
+					// System.out.println(" " + tid.hashCode() + " got update");
 					return;
 				}
 			}
@@ -52,14 +55,17 @@ public class LockManager {
 				this.locks.put(pid, new Lock(Lock.X_LOCK, tid));
 			}
 		}
+		// System.out.println("  " + tid.hashCode() + " got " + per + " page " + pid.pageNumber());
 	}
 
-	public void upgradeBlock(Lock lock, TransactionId tid) throws TransactionAbortedException {
+	public synchronized void upgradeBlock(Lock lock, TransactionId tid) throws TransactionAbortedException {
 		try {
 			long t0 = System.currentTimeMillis();
 			while (!(lock.size() == 1 && lock.contains(tid))) {
+				// System.out.print("-");
 				Thread.sleep(10);
 				if (System.currentTimeMillis() - t0 > DEADLOCK_TIMEOUT) { 
+					// System.out.println("Upgrade Deadlock tid: " + tid.hashCode());
 					throw new TransactionAbortedException();
 				}
 			}
@@ -67,6 +73,7 @@ public class LockManager {
 	}
 
 	public void releaseLock(TransactionId tid, PageId pid) {
+		// System.out.println(tid.hashCode() + " release " + pid.pageNumber());
 		if (this.locks.containsKey(pid)) {
 			Lock l = this.locks.get(pid);
 
@@ -81,12 +88,14 @@ public class LockManager {
 		}
 	}
 
-	private void block(PageId pid) throws TransactionAbortedException {
+	private synchronized void block(PageId pid) throws TransactionAbortedException {
 		try {
 			long t0 = System.currentTimeMillis();
 			while (this.locks.containsKey(pid)) {
+				// System.out.print("-");
 				Thread.sleep(10);
 				if (System.currentTimeMillis() - t0 > DEADLOCK_TIMEOUT) { 
+					// System.out.println("Deadlock pid: " + pid.pageNumber());
 					throw new TransactionAbortedException();
 				}
 			}
