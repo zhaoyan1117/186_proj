@@ -20,11 +20,43 @@ public class BufferPool {
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
+    public static final int X_LOCK = 1;
+    public static final int S_LOCK = 0;
 
 
     private Map<PageId, Page> pagesMap; // mapping from page id to a page.
     private int size; // size of the buffer pool.
     private ArrayList<PageId> replacementQueue;
+    private HashMap<PageId, ArrayList<TransactionId>> locks;
+
+
+    public static class Lock implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+        int type;
+        ArrayList<TransactionId> tids;
+
+        public Lock(int type, TransactionId tid) {
+            this.type = type;
+            this.tids = new ArrayList<TransactionId>();
+            tids.add(tid);
+        }
+
+        public boolean contains(TransactionId tid) {
+            return tids.contains(tid);
+        }
+
+        public int size() {
+            return tids.size();
+        }
+
+        public void remove(TransactionId tid) {
+            if (tids.contains(tid)) {
+                tids.remove(tid);
+            }
+        }
+    }
+
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -36,6 +68,7 @@ public class BufferPool {
         this.size = numPages;
         this.pagesMap = new HashMap<PageId, Page>();
         this.replacementQueue = new ArrayList<PageId>();
+        this.locks = new HashMap<PageId, Lock>();
     }
 
     /**
@@ -56,6 +89,7 @@ public class BufferPool {
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        if ()
         if (pagesMap.containsKey(pid)) {
             this.replacementQueue.remove(pid);
             this.replacementQueue.add(pid);
@@ -80,6 +114,14 @@ public class BufferPool {
         }
     }
 
+
+    private acquireLock(TransactionId tid, PageId pid, Permissions perm){
+        if (perm == Permissions.READ_ONLY) {
+            if (locks.containsKey(pid) && locks.get(pid).get(0) )
+        }
+
+    }
+
     // Helper method to check if this buffer is full.
     private boolean bufferIsFull() {
         return pagesMap.size() == this.size;
@@ -97,6 +139,9 @@ public class BufferPool {
     public  void releasePage(TransactionId tid, PageId pid) {
         // some code goes here
         // not necessary for proj1
+        if (locks.containsKey(pid)) {
+            locks.get(pid).remove(tid);
+        }
     }
 
     /**
@@ -113,7 +158,7 @@ public class BufferPool {
     public boolean holdsLock(TransactionId tid, PageId p) {
         // some code goes here
         // not necessary for proj1
-        return false;
+        return locks.get(p).contains(tid);
     }
 
     /**
