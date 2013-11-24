@@ -15,6 +15,9 @@ public class HeapFileIterator implements DbFileIterator {
     private int numPages;
 
     public HeapFileIterator(TransactionId tid, HeapFile file) {
+        if (tid == null){
+            tid = new TransactionId();
+        }
         this.tid = tid;
         this.file = file;
         this.buffer = Database.getBufferPool();

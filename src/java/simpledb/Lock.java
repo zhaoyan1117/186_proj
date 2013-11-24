@@ -45,4 +45,8 @@ public class Lock {
 
     	this.tids.add(tid);
     }
+
+    public String toString(){
+        return "type: " + this.type + " tids: " + tids.toString();
+    }
 }
