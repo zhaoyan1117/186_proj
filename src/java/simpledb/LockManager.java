@@ -6,7 +6,7 @@ import java.util.*;
 public class LockManager {
 	
 	private Map<PageId, Lock> locks;	
-	private final int DEADLOCK_TIMEOUT = 1000;
+	private final int DEADLOCK_TIMEOUT = 250;
 	
 	public LockManager() {
 		locks = new ConcurrentHashMap<PageId, Lock>();
